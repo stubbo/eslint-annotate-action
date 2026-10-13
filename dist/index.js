@@ -37433,6 +37433,7 @@ function getInputs() {
     const postComment = getBooleanInput('post-comment', false);
     const checkName = getInput('check-name') || 'ESLint Report Analysis';
     const reportFile = getInput('report-json', { required: true });
+    const checkRunId = getCheckRunIdInput();
     return {
         onlyChangedFiles,
         failOnWarning,
@@ -37442,9 +37443,19 @@ function getInputs() {
         postComment,
         checkName,
         reportFile,
+        checkRunId,
     };
 }
-const { onlyChangedFiles: onlyChangedFiles$2, failOnWarning: failOnWarning$1, failOnError: failOnError$1, neutralOnWarning: neutralOnWarning$1, markdownReportOnStepSummary: markdownReportOnStepSummary$1, postComment: postComment$1, checkName: checkName$3, reportFile: reportFile$1, } = getInputs();
+function getCheckRunIdInput() {
+    const val = getInput('check-run-id');
+    if (!val)
+        return null;
+    if (!/^\d+$/.test(val)) {
+        throw new TypeError(`Input check-run-id must be a check run ID, got "${val}"`);
+    }
+    return Number(val);
+}
+const { onlyChangedFiles: onlyChangedFiles$2, failOnWarning: failOnWarning$1, failOnError: failOnError$1, neutralOnWarning: neutralOnWarning$1, markdownReportOnStepSummary: markdownReportOnStepSummary$1, postComment: postComment$1, checkName: checkName$3, reportFile: reportFile$1, checkRunId: checkRunId$2, } = getInputs();
 // Guard: empty string means workspace is unknown; path stripping is skipped
 const GITHUB_WORKSPACE$2 = process.env['GITHUB_WORKSPACE'] ?? '';
 // https://github.com/eslint/eslint/blob/a59a4e6e9217b3cc503c0a702b9e3b02b20b980d/lib/linter/apply-disable-directives.js#L253
@@ -37458,6 +37469,7 @@ var constants = {
     OWNER: context.repo.owner,
     REPO: context.repo.repo,
     checkName: checkName$3,
+    checkRunId: checkRunId$2,
     onlyChangedFiles: isPullRequest && onlyChangedFiles$2,
     reportFile: reportFile$1,
     getTimestamp: getTimestamp$2,
@@ -37573,11 +37585,15 @@ async function createStatusCheck(options) {
     return response.data;
 }
 
-const { OWNER: OWNER$4, REPO: REPO$4, SHA, getTimestamp: getTimestamp$1, checkName: checkName$2 } = constants;
+const { OWNER: OWNER$4, REPO: REPO$4, SHA, getTimestamp: getTimestamp$1, checkName: checkName$2, checkRunId: checkRunId$1 } = constants;
 /**
- * Creates a new in-progress GitHub check run and returns its ID.
+ * Returns the ID of the check run to annotate: the one given as `check-run-id`,
+ * or a newly created in-progress check run.
  */
 async function openStatusCheck() {
+    if (checkRunId$1 !== null) {
+        return checkRunId$1;
+    }
     const response = await createStatusCheck({
         owner: OWNER$4,
         repo: REPO$4,
@@ -37597,12 +37613,28 @@ async function updateStatusCheck(options) {
     return response.data;
 }
 
-const { OWNER: OWNER$3, REPO: REPO$3, getTimestamp, checkName: checkName$1 } = constants;
+const { OWNER: OWNER$3, REPO: REPO$3, getTimestamp, checkName: checkName$1, checkRunId } = constants;
 /**
- * Closes a GitHub check run with a final conclusion.
+ * Writes the final output to the check run and, when the action created it,
+ * completes it with a conclusion. A check run given as `check-run-id` belongs
+ * to someone else (usually the job), so its status and conclusion are left alone.
  * @param conclusion - 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out' | 'action_required'
  */
 async function closeStatusCheck(conclusion, checkId, summary, text) {
+    const output = {
+        title: checkName$1,
+        summary,
+        text,
+    };
+    if (checkRunId !== null) {
+        await updateStatusCheck({
+            owner: OWNER$3,
+            repo: REPO$3,
+            check_run_id: checkId,
+            output,
+        });
+        return;
+    }
     await updateStatusCheck({
         conclusion,
         owner: OWNER$3,
@@ -37610,11 +37642,7 @@ async function closeStatusCheck(conclusion, checkId, summary, text) {
         completed_at: getTimestamp(),
         status: 'completed',
         check_run_id: checkId,
-        output: {
-            title: checkName$1,
-            summary,
-            text,
-        },
+        output,
     });
 }
 

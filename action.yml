@@ -33,6 +33,9 @@ inputs:
     description: "Whether to show a markdown report in the step summary."
     default: 'false'
     required: false
+  check-run-id:
+    description: "ID of an existing check run to annotate instead of creating a new one, e.g. job.check_run_id for the job running this action. The action then leaves the check run's status and conclusion to its owner, so neutral-on-warning has no effect."
+    required: false
   post-comment:
     description: "Whether to post the markdown report as a pull request comment. Replaces any previous comment from this action."
     default: 'false'

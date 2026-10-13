@@ -1,3 +1,6 @@
+# Unreleased
+- Add a `check-run-id` input to annotate an existing check run, such as the job's own (`${{ job.check_run_id }}`), instead of creating one
+
 # `4.0.0` - CONTAINS BREAKING CHANGES
 - Runs using Node 24
 

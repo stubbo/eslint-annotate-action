@@ -30,6 +30,7 @@ function getInputs() {
   const postComment = getBooleanInput('post-comment', false)
   const checkName = core.getInput('check-name') || 'ESLint Report Analysis'
   const reportFile = core.getInput('report-json', { required: true })
+  const checkRunId = getCheckRunIdInput()
 
   return {
     onlyChangedFiles,
@@ -40,7 +41,17 @@ function getInputs() {
     postComment,
     checkName,
     reportFile,
+    checkRunId,
   }
+}
+
+function getCheckRunIdInput(): number | null {
+  const val = core.getInput('check-run-id')
+  if (!val) return null
+  if (!/^\d+$/.test(val)) {
+    throw new TypeError(`Input check-run-id must be a check run ID, got "${val}"`)
+  }
+  return Number(val)
 }
 
 const {
@@ -52,6 +63,7 @@ const {
   postComment,
   checkName,
   reportFile,
+  checkRunId,
 } = getInputs()
 
 // Guard: empty string means workspace is unknown; path stripping is skipped
@@ -72,6 +84,7 @@ export default {
   OWNER: context.repo.owner,
   REPO: context.repo.repo,
   checkName,
+  checkRunId,
   onlyChangedFiles: isPullRequest && onlyChangedFiles,
   reportFile,
   isPullRequest,

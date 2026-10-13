@@ -37,6 +37,7 @@ This action does not run ESLint itself — it processes a report JSON file you p
 | `fail-on-error` | Fail the check when ESLint errors are detected | No | `true` |
 | `neutral-on-warning` | Set check conclusion to `neutral` (instead of `success`) when there are warnings but no errors and `fail-on-warning` is `false` | No | `false` |
 | `check-name` | Name of the GitHub Check created | No | `ESLint Report Analysis` |
+| `check-run-id` | ID of an existing check run to annotate instead of creating one. See [Annotate the job's own check run](#annotate-the-jobs-own-check-run) | No | — |
 | `markdown-report-on-step-summary` | Write the markdown summary to the GitHub Actions job summary | No | `false` |
 | `post-comment` | Post (or replace) a PR comment with the ESLint summary | No | `false` |
 
@@ -110,6 +111,20 @@ Post a sticky comment on pull requests summarising the ESLint results. The comme
           github-token: ${{ secrets.GITHUB_TOKEN }}
           neutral-on-warning: true
 ```
+
+### Annotate the job's own check run
+
+A check run created through the Checks API cannot choose its check suite, so when several workflows run on the same commit GitHub can list the `ESLint Report Analysis` check under any of them ([#35](https://github.com/ataylorme/eslint-annotate-action/issues/35)). Pass the job's own check run instead and the annotations stay with the job that linted:
+
+```yaml
+      - name: Annotate ESLint results
+        uses: ataylorme/eslint-annotate-action@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          check-run-id: ${{ job.check_run_id }}
+```
+
+The job then owns the check's status and conclusion: `fail-on-error` and `fail-on-warning` still fail the step (and so the job), but `neutral-on-warning` has no effect. `job.check_run_id` is not available on GitHub Enterprise Server.
 
 ### Multiple report files (glob)
 
